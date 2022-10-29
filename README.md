@@ -1,6 +1,6 @@
-# NFT Data Scraper
+# NFT Data Scraper via Rarible API
 
-We foster a scraper for NFT (Non-fungible token) data based on public Rarible API, where the following data of NFT collections are easily acquired
+We foster a scraper for NFT (Non-fungible token) data based on public and free [Rarible API](https://api.rarible.org/v0.1/doc), where the following data of NFT collections are easily acquired
 
 - All NFT Collection List `scrape_all_collections`
 - NFT Collection Information `scrape_collection_information`
@@ -11,10 +11,9 @@ We foster a scraper for NFT (Non-fungible token) data based on public Rarible AP
 
 **Characteristis**
 
-- Enjoying efficient data scraping **without applying a private key**.
-- The maximum page size of one request of 1000 **decreases the total amount of API calls**.
+- Enable to scrape NFT data efficiently **without applying a private key**.
+- The maximum page size of one request of 1000 **decreases the total amount of API calls significantly**.
 - Various data are **automatically saved following the corresponding formats**.
-
 
 ## Installation
 
@@ -70,6 +69,12 @@ nft-data-scraper
 ├───nft_data_scraper.py
 └───utils.py
 ```
+
+## To-Do List
+
+- [ ] Rarity Score Calculator
+- [ ] NFT Price Predictor 
+- [ ] NFT Image Extractor
 
 ## Reference
 

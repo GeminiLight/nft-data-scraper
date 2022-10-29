@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 import filetype
 
 
@@ -13,14 +14,15 @@ def download_image(client, url, file_path):
         f.write(res.content)
 
 def extract_key_collection_info(collection_info):
+    defaultdict()
     collection_key_info = {
-        'id': collection_info['id'],
-        'blockchain': collection_info['blockchain'],
-        'type': collection_info['type'],
-        'name': collection_info['name'],
-        'symbol': collection_info['symbol'],
-        'owner': collection_info['owner'].split(':')[1],
-        'description': collection_info['meta']['description'],
+        'id': collection_info.get('id', None),
+        'blockchain': collection_info.get('blockchain', None),
+        'type': collection_info.get('type', None),
+        'name': collection_info.get('name', None),
+        'symbol': collection_info.get('symbol', None),
+        'owner': collection_info['owner'].split(':')[1] if 'owner' in collection_info else None,
+        'description': collection_info['meta'].get('description', None),
         'externalUri': collection_info['meta'].get('externalUri', None),
         'ownerCount': collection_info['statistics']['ownerCount'],
         'itemCount': collection_info['statistics']['itemCount'],
