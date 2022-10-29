@@ -7,7 +7,14 @@ We foster a scraper for NFT (Non-fungible token) data based on public Rarible AP
 - NFT Token Metadata & Image `scrape_collection_items`
 - NFT Transaction Records `scrape_collection_activities`
 
-> `scrape_collection` offers a unified way to scrape information, items and activities of the given collection.
+> Especially, `scrape_collection` offers a unified way to scrape information, items, and activities of the given collection.
+
+**Characteristis**
+
+- Enjoying efficient data scraping **without applying a private key**.
+- The maximum page size of one request of 1000 **decreases the total amount of API calls**.
+- Various data are **automatically saved following the corresponding formats**.
+
 
 ## Installation
 
