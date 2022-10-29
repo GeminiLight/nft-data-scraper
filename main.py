@@ -7,8 +7,8 @@ scraper = NFTDataScraper(num_threads=50)
 chain = 'ETHEREUM'
 collection_contract_address = '0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d'
 
-# set event_types & if_download_image
-event_types = ['SELL']
+# set activity_types & if_download_image
+activity_types = ['SELL']
 if_download_image = True
 
 # start to scrape the data

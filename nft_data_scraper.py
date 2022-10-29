@@ -48,13 +48,13 @@ class NFTDataScraper:
             res_data = res.json()
         return res_status, res_data
 
-    def scrape_collection(self, collection_contract_address, chain='ETHEREUM', event_types=['SELL'], if_download_image=False):
+    def scrape_collection(self, collection_contract_address, chain='ETHEREUM', activity_types=['SELL'], if_download_image=False):
         print('-' * 20 + ' Starting ' + '-' * 20)
         collection_info, collection_key_info = self.scrape_collection_information(collection_contract_address=collection_contract_address, chain=chain)
         print()
         self.scrape_collection_items(collection_contract_address=collection_contract_address, chain=chain, collection_information=collection_info, if_download_image=if_download_image)
         print()
-        self.scrape_collection_activities(collection_contract_address=collection_contract_address, chain=chain, event_types=event_types, collection_information=collection_info)
+        self.scrape_collection_activities(collection_contract_address=collection_contract_address, chain=chain, activity_types=activity_types, collection_information=collection_info)
         print('-' * 20 + ' Finished ' + '-' * 20)
 
     def scrape_all_collections(self, ):
@@ -105,11 +105,11 @@ class NFTDataScraper:
         self.written_temp_header = True
         return collection_info, collection_key_info
 
-    def scrape_collection_activities(self, collection_contract_address, chain='ETHEREUM', event_types=["SELL"], collection_information=None):
-        if len(event_types) == 0: return
+    def scrape_collection_activities(self, collection_contract_address, chain='ETHEREUM', activity_types=["SELL"], collection_information=None):
+        if len(activity_types) == 0: return
         collection_info = self.scrape_collection_information(collection_contract_address) if collection_information is None else collection_information
         collection_name = collection_info['name'] if 'name' in collection_info else 'unknown'
-        url = f'{self.rarible_api_base_url}/activities/byCollection?collection={chain}:{collection_contract_address}&type={", ".join(event_types).upper()}&size={self.page_size}&sort=LATEST_FIRST'
+        url = f'{self.rarible_api_base_url}/activities/byCollection?collection={chain}:{collection_contract_address}&type={", ".join(activity_types).upper()}&size={self.page_size}&sort=LATEST_FIRST'
         total_success_count = 0
         continue_flag_key, continue_flag = 'cursor', None
         collection_activity_list = []
@@ -130,7 +130,7 @@ class NFTDataScraper:
                 continue_flag = res_data[continue_flag_key]
                 time.sleep(self.sleep_time)
 
-        file_path = os.path.join(self.collection_save_dir, f'activities_{"-".join(event_types)}.csv')
+        file_path = os.path.join(self.collection_save_dir, f'activities_{"-".join(activity_types)}.csv')
         pd_properties = pd.DataFrame(collection_activity_list)
         pd_properties.to_csv(file_path)
         print(f'Save file to {file_path}')

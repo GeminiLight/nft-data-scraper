@@ -37,15 +37,20 @@ scraper = NFTDataScraper(num_threads=50)
 chain = 'ETHEREUM'
 collection_contract_address = '0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d'
 
-# set event_types & if_download_image
-event_types = ['SELL']
+# set activity_types & if_download_image
+activity_types = ['SELL']
 if_download_image = True
 
 # start to scrape the data
 scraper.scrape_collection(collection_contract_address=collection_contract_address, 
                          chain=chain, if_download_image=if_download_image
-                         event_types=event_types)
+                         activity_types=activity_types)
 ```
+
+**Optional Arguments**
+
+- Multichain Support: `"ETHEREUM"` `"POLYGON"` `"FLOW"` `"TEZOS"` `"SOLANA"` `"IMMUTABLEX"`
+- Activity Types: `"TRANSFER"` `"MINT"` `"BURN"` `"BID"` `"LIST"` `"SELL"` `"CANCEL_LIST"` `"CANCEL_BID"` `"AUCTION_BID"` `"AUCTION_CREATED"` `"AUCTION_CANCEL"` `"AUCTION_FINISHED"` `"AUCTION_STARTED"` `"AUCTION_ENDED"`
 
 ## File Structure
 
