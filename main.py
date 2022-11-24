@@ -9,7 +9,7 @@ collection_contract_address = '0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d'
 
 # set activity_types & if_download_image
 activity_types = ['SELL']
-if_download_image = True
+if_download_image = False
 
 # start to scrape the data
 scraper.scrape_collection(collection_contract_address=collection_contract_address, 

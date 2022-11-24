@@ -9,6 +9,10 @@ We foster a scraper for NFT (Non-fungible token) data based on public and free [
 
 > Especially, `scrape_collection` offers a unified way to scrape information, items, and activities of the given collection.
 
+Additionally, some advanced functions are also provided
+
+- `calculate_rarity_score`: produces a score for each item in an NFT based on the rarity of its attributes, implementing six ranking metrics based on the probability and score of each feature and three different aggregation strategies (sum, average, product).
+
 **Characteristis**
 
 - Enable to scrape NFT data efficiently **without applying a private key**.
@@ -67,12 +71,13 @@ nft-data-scraper
 │
 ├───main.py
 ├───nft_data_scraper.py
+├───rarity_score_calculator
 └───utils.py
 ```
 
 ## To-Do List
 
-- [ ] Rarity Score Calculator
+- [x] Rarity Score Calculator
 - [ ] NFT Price Predictor 
 - [ ] NFT Image Extractor
 
