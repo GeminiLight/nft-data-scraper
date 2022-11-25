@@ -12,5 +12,7 @@ activity_types = ['SELL']
 if_download_image = False
 
 # start to scrape the data
-scraper.scrape_collection(collection_contract_address=collection_contract_address, 
-                         chain=chain, if_download_image=if_download_image)
+scraper.scrape_collection(
+    collection_contract_address=collection_contract_address, 
+    chain=chain, 
+    if_download_image=if_download_image)

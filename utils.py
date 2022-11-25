@@ -1,7 +1,13 @@
 import os
-from collections import defaultdict
+import json
 import filetype
+from collections import defaultdict
 
+
+def save_json(json_obj, file_path):
+    with open(file_path, 'w') as f:
+        f.write(json.dumps(json_obj, indent=4))
+    return file_path
 
 def download_image(client, url, file_path):
     res = client.get(url)

@@ -9,8 +9,7 @@ import asyncio
 import threading
 import pandas as pd
 
-from utils import download_image, extract_key_collection_info
-
+from utils import download_image, extract_key_collection_info, save_json
 
 
 class NFTDataScraper:
@@ -78,9 +77,9 @@ class NFTDataScraper:
                 continuation = res_data['continuation']
                 time.sleep(self.sleep_time)
 
-        file_path = f'{os.path.join(self.main_save_dir)}/all_collections.csv'
-        pd_collections = pd.DataFrame(all_collection_list)
-        pd_collections.to_csv(file_path)
+        all_collections_file_path = f'{os.path.join(self.main_save_dir)}/all_collections.json'
+        save_json(all_collection_list, all_collections_file_path)
+        print(f'Save all_collections file to {all_collections_file_path}')
         
     def scrape_collection_information(self, collection_contract_address, chain='ETHEREUM'):
         chain, collection_contract_address = self.ready(collection_contract_address, chain)
@@ -91,18 +90,20 @@ class NFTDataScraper:
         print(f"   Name: {collection_info['name']}")
         print(f"  Chain: {chain}")
         print(f"Address: {collection_contract_address}")
-        with open(os.path.join(self.collection_save_dir, 'information.json'), 'w') as f:
-            json_collection_info = json.dumps(collection_info, indent=4)
-            f.write(json_collection_info)
-        collections_key_info_fpath = os.path.join(self.main_save_dir, 'collections.csv')
-        if_write_header = not os.path.exists(collections_key_info_fpath)
-        with open(collections_key_info_fpath, 'a+', newline='') as f:
-            collection_key_info = extract_key_collection_info(collection_info)
-            writer = csv.writer(f)
-            if if_write_header:
-                writer.writerow(collection_key_info.keys())
-            writer.writerow(collection_key_info.values())
-        self.written_temp_header = True
+
+        information_fpath = os.path.join(self.collection_save_dir, 'information.json')
+        save_json(collection_info, information_fpath)
+        print(f'Save information file to {information_fpath}')
+
+        collection_key_info = extract_key_collection_info(collection_info)
+        collections_fpath = os.path.join(self.main_save_dir, 'collections.json')
+        with open(collections_fpath, 'w+') as f:
+            if f.read() == '':
+                collection_list = [collection_info]
+            else:
+                collection_list = json.load(f)
+                collection_list.append(collection_info)
+        save_json(collection_list, collections_fpath)
         return collection_info, collection_key_info
 
     def scrape_collection_activities(self, collection_contract_address, chain='ETHEREUM', activity_types=["SELL"], collection_information=None):
@@ -130,11 +131,9 @@ class NFTDataScraper:
                 continue_flag = res_data[continue_flag_key]
                 time.sleep(self.sleep_time)
 
-        file_path = os.path.join(self.collection_save_dir, f'activities_{"-".join(activity_types)}.csv')
-        pd_properties = pd.DataFrame(collection_activity_list)
-        pd_properties.to_csv(file_path)
-        print(f'Save file to {file_path}')
-
+        activities_file_path = os.path.join(self.collection_save_dir, f'activities_{"-".join(activity_types)}.json')
+        save_json(collection_activity_list, activities_file_path)
+        print(f'Save activities file to {activities_file_path}')
 
     def scrape_collection_items(self, collection_contract_address, chain='ETHEREUM', collection_information=None, if_download_image=False):
         chain, collection_contract_address = self.ready(collection_contract_address, chain)
@@ -186,10 +185,10 @@ class NFTDataScraper:
                 continue_flag = res_data[continue_flag_key]
                 time.sleep(self.sleep_time)
 
-        with open(os.path.join(self.collection_save_dir, 'metadata.json'), 'w') as f:
-            json_item_metadata_list = json.dumps(item_metadata_list, indent=4)
-            f.write(json_item_metadata_list)
-        file_path = os.path.join(self.collection_save_dir, 'properties.csv')
-        pd_properties = pd.DataFrame(item_properties_list)
-        pd_properties.to_csv(file_path)
-        print(f'Save file to {file_path}')
+        metadata_fpath = os.path.join(self.collection_save_dir, 'metadata.json')
+        save_json(item_metadata_list, metadata_fpath)
+        print(f'Save metadata file to {metadata_fpath}')
+
+        properties_file_path = os.path.join(self.collection_save_dir, 'properties.json')
+        save_json(item_properties_list, properties_file_path)
+        print(f'Save properties file to {properties_file_path}')
