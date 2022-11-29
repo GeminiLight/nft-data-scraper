@@ -9,6 +9,13 @@ def save_json(json_obj, file_path):
         f.write(json.dumps(json_obj, indent=4))
     return file_path
 
+
+def read_json(file_path):
+    with open(file_path, 'r') as f:
+        json_file = json.load(f)
+    return json_file
+
+
 def download_image(client, url, file_path):
     res = client.get(url)
     file_type = filetype.guess(res.content)

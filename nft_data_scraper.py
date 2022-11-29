@@ -8,17 +8,26 @@ import httpx
 import asyncio
 import threading
 import pandas as pd
+from datetime import datetime
 
-from utils import download_image, extract_key_collection_info, save_json
+from utils import download_image, extract_key_collection_info, save_json, read_json
 
 
 class NFTDataScraper:
 
-    def __init__(self, num_threads=50, max_timeout=120., sleep_time=0.1, page_size=1000):
+    def __init__(
+            self, 
+            main_save_dir, 
+            num_threads=50, 
+            max_timeout=120., 
+            sleep_time=0.1, 
+            page_size=1000,
+            image_sub_save_dir='images'
+        ) -> None:
         self.rarible_api_base_url = 'https://api.rarible.org/v0.1'
         self.rarible_ethereum_api_base_url = 'https://ethereum-api.rarible.org/v0.1'
-        self.main_save_dir = './nft_data'
-        self.image_sub_save_dir = 'images'
+        self.main_save_dir = main_save_dir
+        self.image_sub_save_dir = image_sub_save_dir
         self.sleep_time = sleep_time
         self.page_size = page_size
         self.num_threads = num_threads
@@ -37,23 +46,36 @@ class NFTDataScraper:
         return chain, collection_contract_address
 
     def safe_request(self, url, method='get', **kwargs):
-        res = self.client.get(url, **kwargs) if method == 'get' else self.client.post(url, **kwargs)
+        res = self.client.request(method, url, **kwargs)
         res_status = res.status_code
-        if res_status != 200:
+        if res_status == 200:
+            res_data = res.json()
+        elif res_status == 404:
             print(f'Status of Request is {res_status}: {res}')
             print(res.json())
             res_data = None
         else:
-            res_data = res.json()
+            print(f'Status of Request is {res_status}: {res}')
+            print(res.json())
+            res_data = None
+            raise ConnectionError
         return res_status, res_data
 
-    def scrape_collection(self, collection_contract_address, chain='ETHEREUM', activity_types=['SELL'], if_download_image=False):
+    def scrape_collection(self, 
+            collection_contract_address, 
+            chain='ETHEREUM', 
+            activity_types=['SELL'], 
+            if_download_image=False
+        ) -> None:
         print('-' * 20 + ' Starting ' + '-' * 20)
         collection_info, collection_key_info = self.scrape_collection_information(collection_contract_address=collection_contract_address, chain=chain)
+        if collection_info is None: return 
         print()
         self.scrape_collection_items(collection_contract_address=collection_contract_address, chain=chain, collection_information=collection_info, if_download_image=if_download_image)
         print()
-        self.scrape_collection_activities(collection_contract_address=collection_contract_address, chain=chain, activity_types=activity_types, collection_information=collection_info)
+        for activity_type in activity_types:
+            activity_type_list = [activity_type]
+            self.scrape_collection_activities(collection_contract_address=collection_contract_address, chain=chain, activity_types=activity_type_list, collection_information=collection_info)
         print('-' * 20 + ' Finished ' + '-' * 20)
 
     def scrape_all_collections(self, ):
@@ -81,63 +103,112 @@ class NFTDataScraper:
         save_json(all_collection_list, all_collections_file_path)
         print(f'Save all_collections file to {all_collections_file_path}')
         
-    def scrape_collection_information(self, collection_contract_address, chain='ETHEREUM'):
+    def scrape_collection_information(
+            self, 
+            collection_contract_address, 
+            chain='ETHEREUM',
+            save=True
+        ) -> tuple[dict, dict]:
+        if ':' in collection_contract_address:
+            chain, collection_contract_address = collection_contract_address.split(':')
+        # ignore Ethereum Name Service and superrare
+        if collection_contract_address in ['0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85', '0xb932a70a57673d89f4acffbe830e8ed7f75fb9e0']:
+            print(f'Not support Ethereum Name Service 0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85')
+            return None, None
         chain, collection_contract_address = self.ready(collection_contract_address, chain)
         url = f'{self.rarible_api_base_url}/collections/{chain}:{collection_contract_address}'
         res_status, res_data = self.safe_request(url, method='get')
+        if res_data is None: return None, None
+
         collection_info = res_data
+        collection_key_info = extract_key_collection_info(collection_info)
         
         print(f"   Name: {collection_info['name']}")
         print(f"  Chain: {chain}")
         print(f"Address: {collection_contract_address}")
 
+        if not save:
+            return collection_info, collection_key_info
+
         information_fpath = os.path.join(self.collection_save_dir, 'information.json')
         save_json(collection_info, information_fpath)
         print(f'Save information file to {information_fpath}')
 
-        collection_key_info = extract_key_collection_info(collection_info)
         collections_fpath = os.path.join(self.main_save_dir, 'collections.json')
-        with open(collections_fpath, 'w+') as f:
-            if f.read() == '':
-                collection_list = [collection_info]
-            else:
-                collection_list = json.load(f)
-                collection_list.append(collection_info)
-        save_json(collection_list, collections_fpath)
+        pd_collections_info = pd.DataFrame([collection_info])
+        if os.path.exists(collections_fpath):
+            old_pd_collections_info = pd.read_json(collections_fpath)
+            pd_collections_info = pd.concat([old_pd_collections_info, pd_collections_info], ignore_index=True)
+            pd_collections_info = pd_collections_info.drop_duplicates(subset=['id'], keep='last')
+        pd_collections_info.to_json(collections_fpath, orient='records', indent=4)
         return collection_info, collection_key_info
 
-    def scrape_collection_activities(self, collection_contract_address, chain='ETHEREUM', activity_types=["SELL"], collection_information=None):
-        if len(activity_types) == 0: return
-        collection_info = self.scrape_collection_information(collection_contract_address) if collection_information is None else collection_information
+    def scrape_collection_activities(
+            self, 
+            collection_contract_address, 
+            chain='ETHEREUM', 
+            activity_types=["SELL"], 
+            collection_information=None
+        ) -> None:
+        if activity_types in [None, False, []]: return
+        collection_info = self.scrape_collection_information(collection_contract_address)[0] if collection_information is None else collection_information
+        if collection_info is None: return 
         collection_name = collection_info['name'] if 'name' in collection_info else 'unknown'
-        url = f'{self.rarible_api_base_url}/activities/byCollection?collection={chain}:{collection_contract_address}&type={", ".join(activity_types).upper()}&size={self.page_size}&sort=LATEST_FIRST'
+        print(f'Scraping Activities ({activity_types}) of {collection_name}')
+        continue_flag_key = 'cursor'
+        activities_file_path = os.path.join(self.collection_save_dir, f'activities_{"-".join(activity_types)}.json')
+        continue_flag = None
+        download_activities = []
+        downloaded_lasted_datetime = datetime.strptime('2000-01-01T00:00:00Z', '%Y-%m-%dT%H:%M:%SZ')
+        # renew with reusing previously downloaded activities
+        if os.path.exists(activities_file_path):
+            print(f'Reuse previously downloaded activities.')
+            download_activities = read_json(activities_file_path)
+            if len(download_activities) != 0:
+                downloaded_lasted_datetime = datetime.strptime(download_activities[0]['date'], '%Y-%m-%dT%H:%M:%SZ')
+        sort = 'LATEST_FIRST'
+        url = f'{self.rarible_api_base_url}/activities/byCollection?collection={chain}:{collection_contract_address}&type={", ".join(activity_types).upper()}&size={self.page_size}&sort={sort}'
         total_success_count = 0
-        continue_flag_key, continue_flag = 'cursor', None
         collection_activity_list = []
-        print(f'Scraping Activities of {collection_name}')
-        while True:
+        continue_flag = True
+        while continue_flag:
             new_url = url if continue_flag == None else url + f'&{continue_flag_key}={continue_flag}'
             res_status, res_data = self.safe_request(new_url, method='get')
-            if res_data is None: break
             for activity in res_data['activities']:
+                activity_datetime = datetime.strptime(activity['date'], '%Y-%m-%dT%H:%M:%SZ')
+                if activity_datetime <= downloaded_lasted_datetime:
+                    continue_flag = False
+                    break
                 collection_activity_list.append(activity)
                 total_success_count += 1
             print(total_success_count, end=' ')
             # continue or stop
-            if continue_flag_key not in res_data:
+            if continue_flag_key not in res_data or not continue_flag:
                 print(f'\nFinished: Scraped Activities of {collection_name}')
                 break
             else:
                 continue_flag = res_data[continue_flag_key]
                 time.sleep(self.sleep_time)
-
-        activities_file_path = os.path.join(self.collection_save_dir, f'activities_{"-".join(activity_types)}.json')
+        collection_activity_list += download_activities
+        print(f'Datatime range of transactions: {collection_activity_list[-1]["date"]} ~ {collection_activity_list[0]["date"]}')
         save_json(collection_activity_list, activities_file_path)
         print(f'Save activities file to {activities_file_path}')
 
-    def scrape_collection_items(self, collection_contract_address, chain='ETHEREUM', collection_information=None, if_download_image=False):
-        chain, collection_contract_address = self.ready(collection_contract_address, chain)
+    def scrape_collection_items(
+            self, 
+            collection_contract_address, 
+            chain='ETHEREUM', 
+            collection_information=None, 
+            if_download_image=False
+        ) -> None:
+        metadata_fpath = os.path.join(self.collection_save_dir, 'metadata.json')
+        properties_file_path = os.path.join(self.collection_save_dir, 'properties.json')
+        if os.path.exists(metadata_fpath) and os.path.exists(properties_file_path):
+            print(f'metadata and properties have already been downloaded.')
+            return
+
         collection_info = self.scrape_collection_information(collection_contract_address) if collection_information is None else collection_information
+        if collection_info is None: return 
         collection_name = collection_info['name'] if 'name' in collection_info else 'unknown'
         total_item_count = max(int(collection_info['statistics']['itemCountTotal']), int(collection_info['statistics']['ownerCountTotal']))
 
@@ -152,20 +223,26 @@ class NFTDataScraper:
         url = f'{self.rarible_api_base_url}/items/byCollection?collection={chain}:{collection_contract_address}&size={self.page_size}'
         while True:
             new_url = url if continue_flag == None else url + f'&{continue_flag_key}={continue_flag}'
-            res = self.client.get(new_url)
-            res_status, res_data = res.status_code, res.json()
-            for item_metadata in res_data['items']:
-                # nft metadata
+            res_status, res_data = self.safe_request(new_url, method='get')
+            for item_info in res_data['items']:
+                # nft info
                 pbar.update()
                 total_image_count += 1
-                item_metadata_list.append(item_metadata)
-                token_id = item_metadata['tokenId']
-                token_name = item_metadata['meta']['name']
-                image_url = item_metadata['meta']['content'][0]['url']
+                if item_info['deleted']: continue
+                if 'meta' not in item_info:
+                    print(f'There is no metadata: {item_info["id"]}!')
+                    continue
+                item_metadata_list.append(item_info)
+                token_id = item_info['tokenId']
+                token_metadata = item_info['meta']
+                token_name = token_metadata['name']
+                
+                image_url = token_metadata['content'][0]['url'] if len(token_metadata['content']) else ""
 
                 item_properties = {'token_id': token_id, 'token_name': token_name, 'image_url': image_url}
-                for p_dict in item_metadata['meta']['attributes']:
-                    property_key, property_value = p_dict.values()
+                for p_dict in token_metadata['attributes']:
+                    property_key   = p_dict.get('key', None)
+                    property_value = p_dict.get('value', None)
                     item_properties[property_key] = property_value
                 item_properties_list.append(item_properties)
                 # download image
@@ -177,7 +254,7 @@ class NFTDataScraper:
                         time.sleep(self.sleep_time)
                     threading.Thread(target=download_image, args=(self.client, image_url, image_file_path)).start()
             # continue or stop
-            if continue_flag_key not in res.json():
+            if continue_flag_key not in res_data:
                 pbar.close()
                 print(f'Finished: Scraped Items of {collection_name}')
                 break
@@ -185,10 +262,8 @@ class NFTDataScraper:
                 continue_flag = res_data[continue_flag_key]
                 time.sleep(self.sleep_time)
 
-        metadata_fpath = os.path.join(self.collection_save_dir, 'metadata.json')
         save_json(item_metadata_list, metadata_fpath)
         print(f'Save metadata file to {metadata_fpath}')
 
-        properties_file_path = os.path.join(self.collection_save_dir, 'properties.json')
         save_json(item_properties_list, properties_file_path)
         print(f'Save properties file to {properties_file_path}')

@@ -75,6 +75,11 @@ nft-data-scraper
 └───utils.py
 ```
 
+## Special Collections
+
+- Decentraland: ETHEREUM:0xf87e31492faf9a91b02ee0deaad50d51d56d5d4d
+- Decentraland: ETHEREUM:0xf87e31492faf9a91b02ee0deaad50d51d56d5d4d
+
 ## To-Do List
 
 - [x] Rarity Score Calculator
