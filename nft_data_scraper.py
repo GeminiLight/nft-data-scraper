@@ -10,7 +10,7 @@ import threading
 import pandas as pd
 from datetime import datetime
 
-from utils import download_image, extract_key_collection_info, save_json, read_json
+from .utils import download_image, extract_key_collection_info, save_json, read_json
 
 
 class NFTDataScraper:
@@ -201,14 +201,15 @@ class NFTDataScraper:
             collection_information=None, 
             if_download_image=False
         ) -> None:
+        collection_info = self.scrape_collection_information(collection_contract_address) if collection_information is None else collection_information
+        if collection_info is None: return 
+
         metadata_fpath = os.path.join(self.collection_save_dir, 'metadata.json')
         properties_file_path = os.path.join(self.collection_save_dir, 'properties.json')
-        if os.path.exists(metadata_fpath) and os.path.exists(properties_file_path):
+        if os.path.exists(metadata_fpath) and os.path.exists(properties_file_path) and not if_download_image:
             print(f'metadata and properties have already been downloaded.')
             return
 
-        collection_info = self.scrape_collection_information(collection_contract_address) if collection_information is None else collection_information
-        if collection_info is None: return 
         collection_name = collection_info['name'] if 'name' in collection_info else 'unknown'
         total_item_count = max(int(collection_info['statistics']['itemCountTotal']), int(collection_info['statistics']['ownerCountTotal']))
 
@@ -247,6 +248,7 @@ class NFTDataScraper:
                 item_properties_list.append(item_properties)
                 # download image
                 if if_download_image:
+                    print(image_url)
                     image_file_path = f'./{collection_image_save_dir}/{token_id}'
                     if token_id in downloaded_image_list:
                         continue
